@@ -1,0 +1,5 @@
+# Configuração local do CLI. O schema está nas migrations 001–012, nesta ordem.
+project_id = "torrezbarberapp"
+
+[db]
+major_version = 15
