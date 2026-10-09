@@ -1,5 +1,6 @@
 "use server";
 
+import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { signInSchema, signUpSchema } from "@/lib/validators";
 import { getSiteUrl, hasSupabaseEnv } from "@/lib/supabase/env";
@@ -14,6 +15,57 @@ export type AuthState = {
 function safeNext(value: FormDataEntryValue | null): string {
   const next = String(value || "/");
   return next.startsWith("/") && !next.startsWith("//") ? next : "/";
+}
+
+async function findSignupConflict(email: string, phone: string): Promise<string | null> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) return null;
+
+  const admin = createServiceClient(url, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const [{ data: emailRow }, { data: phoneRow }] = await Promise.all([
+    admin.from("profiles").select("id").eq("email", email.toLowerCase()).maybeSingle(),
+    admin.from("profiles").select("id").eq("phone", phone).maybeSingle(),
+  ]);
+
+  if (emailRow) return "Este e-mail já está cadastrado.";
+  if (phoneRow) return "Este telefone já está cadastrado.";
+  return null;
+}
+
+function signInErrorMessage(error: { code?: string; message: string; status?: number }): string {
+  if (error.code === "email_not_confirmed") {
+    return "Confirme o e-mail antes de entrar. Veja a caixa de entrada e o spam.";
+  }
+  if (error.code === "over_request_rate_limit" || error.status === 429) {
+    return "Muitas tentativas. Espere um instante e tente de novo.";
+  }
+  if (error.code === "email_address_invalid") {
+    return "Informe um e-mail válido.";
+  }
+  if (error.code === "invalid_credentials") {
+    return "E-mail ou senha inválidos.";
+  }
+  return "Não foi possível entrar agora. Tente de novo.";
+}
+
+function signupErrorMessage(message: string): string {
+  const text = message.toLowerCase();
+  if (text.includes("already") || text.includes("registered")) {
+    return "Este e-mail já está cadastrado.";
+  }
+  if (text.includes("phone") || text.includes("profiles_phone") || text.includes("database error saving new user")) {
+    return "Este telefone já está cadastrado.";
+  }
+  if (text.includes("password")) {
+    return "Escolha uma senha mais forte, com pelo menos 8 caracteres.";
+  }
+  if (text.includes("rate") || text.includes("only request this")) {
+    return "Muitas tentativas. Espere um instante e tente de novo.";
+  }
+  return "Não foi possível criar a conta.";
 }
 
 export async function signInAction(_state: AuthState, formData: FormData): Promise<AuthState> {
@@ -31,10 +83,13 @@ export async function signInAction(_state: AuthState, formData: FormData): Promi
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  const { error } = await supabase.auth.signInWithPassword({
+    email: parsed.data.email.toLowerCase(),
+    password: parsed.data.password,
+  });
 
   if (error) {
-    return { success: false, message: "E-mail ou senha inválidos." };
+    return { success: false, message: signInErrorMessage(error) };
   }
 
   const next = safeNext(formData.get("next"));
@@ -58,9 +113,14 @@ export async function signUpAction(_state: AuthState, formData: FormData): Promi
     return { success: false, fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
+  const conflict = await findSignupConflict(parsed.data.email, parsed.data.phone);
+  if (conflict) {
+    return { success: false, message: conflict };
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
-    email: parsed.data.email,
+    email: parsed.data.email.toLowerCase(),
     password: parsed.data.password,
     options: {
       data: {
@@ -72,14 +132,14 @@ export async function signUpAction(_state: AuthState, formData: FormData): Promi
   });
 
   if (error) {
-    const text = error.message.toLowerCase();
-    if (text.includes("already") || text.includes("registered")) {
-      return { success: false, message: "Este e-mail já está cadastrado." };
-    }
-    if (text.includes("phone") || text.includes("profiles_phone")) {
-      return { success: false, message: "Este telefone já está cadastrado." };
-    }
-    return { success: false, message: "Não foi possível criar a conta." };
+    return { success: false, message: signupErrorMessage(error.message) };
+  }
+
+  if (data.user && (data.user.identities?.length ?? 0) === 0) {
+    return {
+      success: false,
+      message: "Este e-mail já está cadastrado. Entre com a senha original ou redefina a senha.",
+    };
   }
 
   const next = safeNext(formData.get("next"));
@@ -112,7 +172,7 @@ export async function requestPasswordReset(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+  const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email.toLowerCase(), {
     redirectTo: `${getSiteUrl()}/auth/callback?next=/redefinir-senha`,
   });
 
@@ -164,10 +224,16 @@ export async function signInOwnerAction(
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: parsed.data.email.toLowerCase(),
+    password: parsed.data.password,
+  });
 
   if (error || !data.user) {
-    return { success: false, message: "E-mail ou senha inválidos." };
+    return {
+      success: false,
+      message: error ? signInErrorMessage(error) : "E-mail ou senha inválidos.",
+    };
   }
 
   const { data: profile } = await supabase

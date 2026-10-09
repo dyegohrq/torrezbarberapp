@@ -28,15 +28,36 @@ export function SignInForm({ next = "/", pedido = "" }: { next?: string; pedido?
   return (
     <form
       className="space-y-4"
-      onSubmit={form.handleSubmit(async (values) => {
-        const data = new FormData();
-        data.set("email", values.email);
-        data.set("password", values.password);
+      onSubmit={async (event) => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        const parsed = signInSchema.safeParse({
+          email: data.get("email"),
+          password: data.get("password"),
+        });
+
+        if (!parsed.success) {
+          form.clearErrors();
+          for (const [field, errors] of Object.entries(parsed.error.flatten().fieldErrors)) {
+            const text = errors?.[0];
+            if (text) form.setError(field as "email" | "password", { message: text });
+          }
+          setMessage("");
+          return;
+        }
+
+        data.set("email", parsed.data.email);
         data.set("next", next);
         data.set("pedido", pedido);
         const result = await signInAction(initial, data);
-        setMessage(result.message ?? "");
-      })}
+        if (result?.fieldErrors) {
+          for (const [field, errors] of Object.entries(result.fieldErrors)) {
+            const text = errors?.[0];
+            if (text) form.setError(field as "email" | "password", { message: text });
+          }
+        }
+        setMessage(result?.message ?? "");
+      }}
     >
       <Field label="E-mail" error={form.formState.errors.email?.message}>
         <Input type="email" autoComplete="email" {...form.register("email")} />
@@ -62,6 +83,7 @@ export function SignUpForm({ next = "/", pedido = "" }: { next?: string; pedido?
     defaultValues: { fullName: "", email: "", phone: "", password: "" },
   });
   const [message, setMessage] = useState("");
+  const [failed, setFailed] = useState(false);
 
   return (
     <form
@@ -75,7 +97,14 @@ export function SignUpForm({ next = "/", pedido = "" }: { next?: string; pedido?
         data.set("next", next);
         data.set("pedido", pedido);
         const result = await signUpAction(initial, data);
+        if (result.fieldErrors) {
+          for (const [field, errors] of Object.entries(result.fieldErrors)) {
+            const text = errors?.[0];
+            if (text) form.setError(field as "fullName" | "email" | "phone" | "password", { message: text });
+          }
+        }
         setMessage(result.message ?? "");
+        setFailed(!result.success);
       })}
     >
       <Field label="Nome" error={form.formState.errors.fullName?.message}>
@@ -90,7 +119,9 @@ export function SignUpForm({ next = "/", pedido = "" }: { next?: string; pedido?
       <Field label="Senha" error={form.formState.errors.password?.message}>
         <Input type="password" autoComplete="new-password" {...form.register("password")} />
       </Field>
-      {message ? <p className="text-sm text-[#E5E5E5]">{message}</p> : null}
+      {message ? (
+        <p className={`text-sm ${failed ? "text-[#ffb4ab]" : "text-[#E5E5E5]"}`}>{message}</p>
+      ) : null}
       <button className="w-full bg-[#C5A059] py-3 text-sm font-bold tracking-[0.08em] text-[#0D0D0D] uppercase" type="submit">
         Criar conta
       </button>

@@ -99,12 +99,15 @@ export function SiteHeader({
             </Link>
           ) : null}
           {profile ? (
-            <Link
-              href="/minha-agenda"
-              className="text-xs tracking-[0.08em] text-white uppercase"
-            >
-              Minha agenda
-            </Link>
+            <>
+              <Link
+                href="/minha-agenda"
+                className="text-xs tracking-[0.08em] text-white uppercase"
+              >
+                Minha agenda
+              </Link>
+              <SignOutButton className="text-xs tracking-[0.08em] text-[#9CA3AF] uppercase hover:text-white" />
+            </>
           ) : (
             <Link
               href="/entrar"
@@ -200,20 +203,23 @@ export function SiteHeader({
                 </Link>
               )}
               {profile ? (
-                <form action={signOut}>
-                  <input type="hidden" name="next" value="/" />
-                  <button
-                    type="submit"
-                    className="text-sm tracking-[0.08em] text-[#9CA3AF] uppercase"
-                  >
-                    Sair
-                  </button>
-                </form>
+                <SignOutButton className="text-left text-sm tracking-[0.08em] text-[#9CA3AF] uppercase hover:text-white" />
               ) : null}
             </div>
           </aside>
         </div>
       ) : null}
     </header>
+  );
+}
+
+function SignOutButton({ className }: { className: string }) {
+  return (
+    <form action={signOut}>
+      <input type="hidden" name="next" value="/" />
+      <button type="submit" className={className}>
+        Sair
+      </button>
+    </form>
   );
 }
