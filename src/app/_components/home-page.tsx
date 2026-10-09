@@ -161,7 +161,7 @@ function Services({ services }: { services: PublicContent["services"] }) {
             >
               <div className="h-40 bg-[#131313]">
                 {service.imagePath ? (
-                  <img src={service.imagePath} alt="" className="h-full w-full object-cover" />
+                  <img src={service.imagePath} alt={service.name} className="h-full w-full object-cover" />
                 ) : null}
               </div>
               <div className="p-4">

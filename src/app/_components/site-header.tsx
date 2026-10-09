@@ -185,6 +185,15 @@ export function SiteHeader({
               ))}
             </nav>
             <div className="mt-auto flex flex-col gap-3">
+              {profile?.role === "owner" ? (
+                <Link
+                  href="/painel"
+                  onClick={() => setOpen(false)}
+                  className="border border-[#C5A059] py-3 text-center text-sm font-bold tracking-[0.08em] text-[#C5A059] uppercase"
+                >
+                  Painel
+                </Link>
+              ) : null}
               {profile && onSchedule ? (
                 <button
                   type="button"

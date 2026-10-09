@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,6 +12,7 @@ import {
   removePortfolio,
   saveBusiness,
   saveHours,
+  replaceServiceImage,
   saveProduct,
   saveService,
 } from "@/app/painel/(admin)/_actions/content";
@@ -189,26 +190,32 @@ function ServicesForm({
       <ul className="mt-4 space-y-3">
         {services.map((service) => (
           <li key={service.id} className="border border-[#262626] p-4 text-sm">
-            <p className="text-white">
-              {service.name} · {formatMoney(service.priceCents)} · {service.durationMinutes} min
-              {service.durationIsProvisional ? " · duração provisória" : ""}
-              {service.isActive ? "" : " · inativo"}
-            </p>
+            <div className="flex gap-4">
+              <div className="flex shrink-0 flex-col gap-2">
+                <div className="h-24 w-36 bg-[#131313]">
+                  {service.imagePath ? (
+                    <img src={service.imagePath} alt="" className="h-full w-full object-cover" />
+                  ) : null}
+                </div>
+                <ServiceImageButton service={service} onMessage={onMessage} />
+              </div>
+              <p className="text-white">
+                {service.name} · {formatMoney(service.priceCents)} · {service.durationMinutes} min
+                {service.durationIsProvisional ? " · duração provisória" : ""}
+                {service.isActive ? "" : " · inativo"}
+              </p>
+            </div>
             <ServiceEditor service={service} onMessage={onMessage} />
           </li>
         ))}
       </ul>
       <form
         className="mt-4 grid gap-3 border border-[#262626] p-4"
-        onSubmit={form.handleSubmit(async (values) => {
-          const result = await saveService({
-            name: values.name,
-            description: values.description,
-            price: Number(values.price),
-            durationMinutes: Number(values.durationMinutes),
-            isActive: values.isActive,
-          });
-          onMessage(result.message);
+        onSubmit={form.handleSubmit(async (_values, event) => {
+          const formElement = event?.currentTarget;
+          if (!(formElement instanceof HTMLFormElement)) return;
+          const result = await saveService(new FormData(formElement));
+          onMessage(result.message ?? "");
           if (result.success) form.reset();
         })}
       >
@@ -217,6 +224,10 @@ function ServicesForm({
         <Textarea placeholder="Descrição" {...form.register("description")} />
         <Input type="number" step="0.01" {...form.register("price")} />
         <Input type="number" step="30" {...form.register("durationMinutes")} />
+        <label className="text-sm text-[#9CA3AF]">
+          Imagem
+          <input name="image" type="file" accept="image/jpeg,image/png,image/webp" className="mt-1 block text-sm" />
+        </label>
         <label className="text-sm text-[#9CA3AF]">
           <input type="checkbox" {...form.register("isActive")} /> Ativo
         </label>
@@ -245,19 +256,13 @@ function ServiceEditor({
       className="mt-3 grid gap-2 md:grid-cols-4"
       onSubmit={async (event) => {
         event.preventDefault();
-        const form = new FormData(event.currentTarget);
-        const result = await saveService({
-          id: service.id,
-          name: String(form.get("name")),
-          description: String(form.get("description") || ""),
-          price: Number(form.get("price")),
-          durationMinutes: Number(form.get("durationMinutes")),
-          isActive: form.get("isActive") === "on",
-        });
-        onMessage(result.message);
+        const result = await saveService(new FormData(event.currentTarget));
+        onMessage(result.message ?? "");
         if (result.success) router.refresh();
       }}
     >
+      <input type="hidden" name="id" value={service.id} />
+      <input type="hidden" name="currentImage" value={service.imagePath ?? ""} />
       <Input name="name" defaultValue={service.name} />
       <Input name="price" type="number" step="0.01" defaultValue={(service.priceCents / 100).toFixed(2)} />
       <Input name="durationMinutes" type="number" step="30" defaultValue={service.durationMinutes} />
@@ -267,6 +272,53 @@ function ServiceEditor({
       <Input name="description" defaultValue={service.description ?? ""} className="md:col-span-3" />
       <button className="border border-[#C5A059] text-[#C5A059]" type="submit">Salvar</button>
     </form>
+  );
+}
+
+function ServiceImageButton({
+  service,
+  onMessage,
+}: {
+  service: ServiceItem;
+  onMessage: (value: string) => void;
+}) {
+  const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  async function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    const data = new FormData();
+    data.set("id", service.id);
+    data.set("image", file);
+    setIsUploading(true);
+    const result = await replaceServiceImage(data);
+    setIsUploading(false);
+    onMessage(result.message ?? "");
+    if (result.success) router.refresh();
+  }
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="sr-only"
+        onChange={handleChange}
+      />
+      <button
+        type="button"
+        disabled={isUploading}
+        onClick={() => inputRef.current?.click()}
+        className="border border-[#C5A059] px-2 py-1 text-[11px] font-bold tracking-[0.08em] text-[#C5A059] uppercase disabled:opacity-60"
+      >
+        {isUploading ? "Enviando" : service.imagePath ? "Alterar imagem" : "Adicionar imagem"}
+      </button>
+    </>
   );
 }
 

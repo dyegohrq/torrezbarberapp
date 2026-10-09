@@ -100,21 +100,28 @@ export async function removeBreak(id: string) {
   return { success: true, message: "Pausa removida." };
 }
 
-export async function saveService(input: {
-  id?: string;
-  name: string;
-  description?: string;
-  price: number | string;
-  durationMinutes: number | string;
-  isActive: boolean;
-}) {
-  const parsed = serviceSchema.safeParse(input);
+export async function saveService(formData: FormData) {
+  const parsed = serviceSchema.safeParse({
+    name: formData.get("name"),
+    description: formData.get("description"),
+    price: formData.get("price"),
+    durationMinutes: formData.get("durationMinutes"),
+    isActive: formData.get("isActive") === "on",
+  });
   if (!parsed.success) {
     return { success: false, message: parsed.error.issues[0]?.message ?? "Serviço inválido." };
   }
 
   const supabase = await ownerClient();
   if (!supabase) return { success: false, message: "Acesso restrito ao dono." };
+
+  const file = formData.get("image");
+  let imagePath = String(formData.get("currentImage") || "") || null;
+  if (file instanceof File && file.size > 0) {
+    const uploaded = await uploadImage(supabase, file, "services");
+    if ("message" in uploaded) return { success: false, message: uploaded.message };
+    imagePath = uploaded.path;
+  }
 
   const payload = {
     name: parsed.data.name,
@@ -123,16 +130,38 @@ export async function saveService(input: {
     duration_minutes: parsed.data.durationMinutes,
     duration_is_provisional: false,
     is_active: parsed.data.isActive,
+    image_path: imagePath,
   };
 
-  const query = input.id
-    ? supabase.from("services").update(payload).eq("id", input.id)
+  const id = String(formData.get("id") || "");
+  const query = id
+    ? supabase.from("services").update(payload).eq("id", id)
     : supabase.from("services").insert(payload);
 
   const { error } = await query;
   if (error) return { success: false, message: error.message };
   refresh();
   return { success: true, message: "Serviço salvo." };
+}
+
+export async function replaceServiceImage(formData: FormData) {
+  const id = String(formData.get("id") || "");
+  const file = formData.get("image");
+  if (!id) return { success: false, message: "Serviço inválido." };
+  if (!(file instanceof File) || file.size === 0) {
+    return { success: false, message: "Escolha uma imagem." };
+  }
+
+  const supabase = await ownerClient();
+  if (!supabase) return { success: false, message: "Acesso restrito ao dono." };
+
+  const uploaded = await uploadImage(supabase, file, "services");
+  if ("message" in uploaded) return { success: false, message: uploaded.message };
+
+  const { error } = await supabase.from("services").update({ image_path: uploaded.path }).eq("id", id);
+  if (error) return { success: false, message: error.message };
+  refresh();
+  return { success: true, message: "Imagem atualizada." };
 }
 
 export async function saveProduct(formData: FormData) {
