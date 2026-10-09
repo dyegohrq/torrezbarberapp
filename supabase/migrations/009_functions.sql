@@ -62,7 +62,8 @@ begin
     select 1
     from public.operating_breaks b
     where b.weekday = v_dow
-      and tsrange(v_start, v_end_time, '[)') && tsrange(b.starts_at, b.ends_at, '[)')
+      and v_start < b.ends_at
+      and b.starts_at < v_end_time
   ) then
     raise exception 'O horário atravessa uma pausa.';
   end if;
