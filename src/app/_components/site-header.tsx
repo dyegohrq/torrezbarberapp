@@ -194,6 +194,15 @@ export function SiteHeader({
                   Painel
                 </Link>
               ) : null}
+              {!profile ? (
+                <Link
+                  href="/entrar"
+                  onClick={() => setOpen(false)}
+                  className="border border-[#C5A059] py-3 text-center text-sm font-bold tracking-[0.08em] text-[#C5A059] uppercase"
+                >
+                  Entrar
+                </Link>
+              ) : null}
               {profile && onSchedule ? (
                 <button
                   type="button"
