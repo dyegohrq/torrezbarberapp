@@ -11,7 +11,7 @@ export function SiteFooter({
 }) {
   return (
     <footer className="border-t border-[#262626] bg-[#0D0D0D]">
-      <div className="mx-auto grid max-w-[1200px] gap-10 px-5 py-12 md:grid-cols-4 md:px-8 lg:px-12">
+      <div className="mx-auto grid max-w-300 gap-10 px-5 py-12 md:grid-cols-4 md:px-8 lg:px-12">
         <div>
           <img src="/image/TB_logo_fundo_removido.png" alt="Torrez Barber" className="mb-4 h-10 w-auto " />
           <p className="text-sm text-[#9CA3AF]">Barbearia no Valentina, João Pessoa — PB.</p>
@@ -59,9 +59,14 @@ export function SiteFooter({
           </ul>
         </div>
       </div>
-      <p className="border-t border-[#262626] py-4 text-center text-xs text-[#9CA3AF]">
-        Torrezbarber · Valentina, João Pessoa
-      </p>
+      <div className="border-t border-[#262626] py-5 space-y-2 ">
+        <p className="text-center text-xs text-[#9CA3AF]">
+          Torrezbarber · Valentina, João Pessoa
+        </p>
+        <p className="text-center text-xs text-[#9CA3AF]">
+          Desenvolvido por <a href="https://dyegohdev.com/" target="_blank" rel="noreferrer" className="text-[#C5A059]">DH|Dyego Henrique</a>
+        </p>
+      </div>
     </footer>
   );
 }

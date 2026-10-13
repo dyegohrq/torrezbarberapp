@@ -2,7 +2,8 @@
 
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { signOut } from "@/app/_actions/sign-out";
 import type { Profile } from "@/lib/content/types";
 
@@ -25,6 +26,7 @@ export function SiteHeader({
   overlay?: boolean;
 }) {
   const headerRef = useRef<HTMLElement>(null);
+  const ignoreCloseRef = useRef(false);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState("Início");
   const [pastHero, setPastHero] = useState(false);
@@ -49,6 +51,55 @@ export function SiteHeader({
       window.removeEventListener("resize", update);
     };
   }, [overlay]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const scrollY = window.scrollY;
+    const { style } = document.body;
+    const htmlStyle = document.documentElement.style;
+    const previous = {
+      position: style.position,
+      top: style.top,
+      left: style.left,
+      right: style.right,
+      width: style.width,
+      overflow: style.overflow,
+      htmlOverflow: htmlStyle.overflow,
+    };
+
+    style.position = "fixed";
+    style.top = `-${scrollY}px`;
+    style.left = "0";
+    style.right = "0";
+    style.width = "100%";
+    style.overflow = "hidden";
+    htmlStyle.overflow = "hidden";
+
+    return () => {
+      style.position = previous.position;
+      style.top = previous.top;
+      style.left = previous.left;
+      style.right = previous.right;
+      style.width = previous.width;
+      style.overflow = previous.overflow;
+      htmlStyle.overflow = previous.htmlOverflow;
+      window.scrollTo(0, scrollY);
+    };
+  }, [open]);
+
+  function handleOpen() {
+    ignoreCloseRef.current = true;
+    setOpen(true);
+    window.setTimeout(() => {
+      ignoreCloseRef.current = false;
+    }, 400);
+  }
+
+  function handleClose() {
+    if (ignoreCloseRef.current) return;
+    setOpen(false);
+  }
 
   function handleSchedule() {
     setOpen(false);
@@ -136,23 +187,25 @@ export function SiteHeader({
 
         <button
           type="button"
-          className="text-white lg:hidden"
+          className="relative z-10 p-2 text-white lg:hidden"
           aria-label="Abrir menu"
-          onClick={() => setOpen(true)}
+          aria-expanded={open}
+          onClick={handleOpen}
         >
           <Menu />
         </button>
       </div>
 
-      {open ? (
-        <div className="fixed inset-0 z-50 lg:hidden">
+      {open
+        ? createPortal(
+        <div className="fixed inset-0 z-[80] h-dvh w-full overflow-hidden overscroll-none">
           <button
             type="button"
             aria-label="Fechar menu"
             className="absolute inset-0 bg-black/75"
-            onClick={() => setOpen(false)}
+            onClick={handleClose}
           />
-          <aside className="absolute top-0 left-0 flex h-full w-[min(100%,320px)] flex-col bg-[#0D0D0D] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
+          <aside className="absolute inset-y-0 left-0 flex w-[min(100%,320px)] flex-col overflow-y-auto overscroll-contain bg-[#0D0D0D] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
             <div className="mb-8 flex items-center justify-between">
               <img
                 src="/image/TB_logo_fundo_removido.png"
@@ -162,7 +215,7 @@ export function SiteHeader({
               <button
                 type="button"
                 aria-label="Fechar"
-                onClick={() => setOpen(false)}
+                onClick={handleClose}
               >
                 <X className="text-white" />
               </button>
@@ -225,8 +278,10 @@ export function SiteHeader({
               ) : null}
             </div>
           </aside>
-        </div>
-      ) : null}
+        </div>,
+          document.documentElement,
+        )
+        : null}
     </header>
   );
 }

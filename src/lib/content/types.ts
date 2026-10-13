@@ -93,6 +93,12 @@ export type TimeBlock = {
   endsAt: string;
 };
 
+export type DailyTimeBlock = {
+  id: string;
+  startsAt: string;
+  endsAt: string;
+};
+
 export type OwnerNotification = {
   id: string;
   type: "booked" | "cancelled_by_client" | "rescheduled";

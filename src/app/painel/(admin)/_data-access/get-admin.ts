@@ -1,6 +1,7 @@
 import { mapAppointment } from "@/app/_data-access/get-public-content";
 import type {
   AppointmentDetail,
+  DailyTimeBlock,
   HoursItem,
   OwnerNotification,
   PortfolioItem,
@@ -20,7 +21,7 @@ export async function getAgendaDay(date: string) {
   const end = new Date(`${date}T23:59:59-03:00`).toISOString();
   const weekday = new Date(`${date}T12:00:00-03:00`).getUTCDay();
 
-  const [hoursResult, breaksResult, appointmentsResult, blocksResult, notificationsResult] =
+  const [hoursResult, breaksResult, appointmentsResult, blocksResult, dailyResult, notificationsResult] =
     await Promise.all([
       supabase.from("operating_hours").select("*").eq("weekday", weekday).maybeSingle(),
       supabase.from("operating_breaks").select("*").eq("weekday", weekday),
@@ -31,6 +32,7 @@ export async function getAgendaDay(date: string) {
         .lt("starts_at", end)
         .gt("starts_at", start),
       supabase.from("time_blocks").select("*").lt("starts_at", end).gt("ends_at", start),
+      supabase.from("daily_time_blocks").select("*").order("starts_at"),
       supabase
         .from("owner_notifications")
         .select("*")
@@ -64,6 +66,12 @@ export async function getAgendaDay(date: string) {
     endsAt: row.ends_at,
   }));
 
+  const dailyBlocks: DailyTimeBlock[] = (dailyResult.data ?? []).map((row) => ({
+    id: row.id,
+    startsAt: clock(row.starts_at) ?? "",
+    endsAt: clock(row.ends_at) ?? "",
+  }));
+
   const notifications: OwnerNotification[] = (notificationsResult.data ?? []).map((row) => ({
     id: row.id,
     type: row.type,
@@ -72,7 +80,7 @@ export async function getAgendaDay(date: string) {
     createdAt: row.created_at,
   }));
 
-  return { hours, appointments, blocks, notifications };
+  return { hours, appointments, blocks, dailyBlocks, notifications };
 }
 
 export async function getAdminCatalog() {

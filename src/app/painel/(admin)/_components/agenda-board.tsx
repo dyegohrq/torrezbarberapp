@@ -5,10 +5,18 @@ import { useRouter } from "next/navigation";
 import {
   cancelByOwner,
   createBlock,
+  createDailyBlock,
   markNotificationRead,
   removeBlock,
+  removeDailyBlock,
 } from "@/app/painel/(admin)/_actions/agenda";
-import type { AppointmentDetail, HoursItem, OwnerNotification, TimeBlock } from "@/lib/content/types";
+import type {
+  AppointmentDetail,
+  DailyTimeBlock,
+  HoursItem,
+  OwnerNotification,
+  TimeBlock,
+} from "@/lib/content/types";
 import { formatAppointmentStamp, formatMoney, formatPhone } from "@/lib/format";
 import { formatClock, zonedDate } from "@/lib/scheduling/availability";
 
@@ -17,12 +25,14 @@ export function AgendaBoard({
   hours,
   appointments,
   blocks,
+  dailyBlocks,
   notifications,
 }: {
   date: string;
   hours: HoursItem;
   appointments: AppointmentDetail[];
   blocks: TimeBlock[];
+  dailyBlocks: DailyTimeBlock[];
   notifications: OwnerNotification[];
 }) {
   const router = useRouter();
@@ -30,6 +40,7 @@ export function AgendaBoard({
   const [message, setMessage] = useState("");
   const [blockStart, setBlockStart] = useState("09:00");
   const [blockEnd, setBlockEnd] = useState("10:00");
+  const [repeatDaily, setRepeatDaily] = useState(false);
   const unread = notifications.filter((item) => !item.readAt).length;
   const slots = buildSlots(hours);
 
@@ -61,7 +72,8 @@ export function AgendaBoard({
               const end = start.getTime() + 30 * 60_000;
               const appointment = appointments.find((item) => covers(item.startsAt, item.durationMinutes, start.getTime(), end));
               const block = blocks.find((item) => overlaps(item.startsAt, item.endsAt, start.getTime(), end));
-              const tone = appointment ? "bg-[#C5A059]/20" : block ? "bg-[#2A2A2A]" : "";
+              const daily = dailyBlocks.find((item) => coversClock(item.startsAt, item.endsAt, slot, slot + 30));
+              const tone = appointment ? "bg-[#C5A059]/20" : block || daily ? "bg-[#2A2A2A]" : "";
 
               return (
                 <li key={slot}>
@@ -76,7 +88,9 @@ export function AgendaBoard({
                         ? appointment.client?.fullName ?? "Ocupado"
                         : block
                           ? "Bloqueado"
-                          : "Livre"}
+                          : daily
+                            ? "Horário indisponível"
+                            : "Livre"}
                     </span>
                   </button>
                 </li>
@@ -143,10 +157,12 @@ export function AgendaBoard({
             event.preventDefault();
             const [startHour, startMinute] = blockStart.split(":").map(Number);
             const [endHour, endMinute] = blockEnd.split(":").map(Number);
-            const result = await createBlock(
-              zonedDate(date, startHour * 60 + startMinute).toISOString(),
-              zonedDate(date, endHour * 60 + endMinute).toISOString(),
-            );
+            const result = repeatDaily
+              ? await createDailyBlock(blockStart, blockEnd)
+              : await createBlock(
+                  zonedDate(date, startHour * 60 + startMinute).toISOString(),
+                  zonedDate(date, endHour * 60 + endMinute).toISOString(),
+                );
             setMessage(result.message);
             if (result.success) router.refresh();
           }}
@@ -154,10 +170,53 @@ export function AgendaBoard({
           <h2 className="text-sm font-bold tracking-[0.08em] text-white uppercase">Bloquear faixa</h2>
           <input type="time" value={blockStart} onChange={(event) => setBlockStart(event.target.value)} className="w-full border border-[#262626] bg-[#1C1C1C] px-3 py-2" />
           <input type="time" value={blockEnd} onChange={(event) => setBlockEnd(event.target.value)} className="w-full border border-[#262626] bg-[#1C1C1C] px-3 py-2" />
+          <button
+            type="button"
+            aria-pressed={repeatDaily}
+            onClick={() => setRepeatDaily((current) => !current)}
+            className={`w-full border py-2 text-sm font-bold tracking-[0.08em] uppercase ${
+              repeatDaily
+                ? "border-[#C5A059] bg-[#C5A059] text-[#0D0D0D]"
+                : "border-[#262626] text-white"
+            }`}
+          >
+            Todos os dias
+          </button>
+          <p className="text-xs text-[#9CA3AF]">
+            {repeatDaily
+              ? "Este horário fica bloqueado em todos os dias."
+              : "Vale apenas para o dia selecionado."}
+          </p>
           <button type="submit" className="w-full bg-[#C5A059] py-2 text-sm font-bold text-[#0D0D0D] uppercase">
             Bloquear
           </button>
         </form>
+
+        {dailyBlocks.length > 0 ? (
+          <ul className="space-y-2">
+            {dailyBlocks.map((block) => (
+              <li key={block.id} className="flex items-center justify-between gap-3 text-sm">
+                <span>
+                  {block.startsAt} – {block.endsAt}
+                  <span className="mt-1 block text-xs tracking-[0.08em] text-[#C5A059] uppercase">
+                    Todos os dias
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className="text-[#C5A059]"
+                  onClick={async () => {
+                    const result = await removeDailyBlock(block.id);
+                    setMessage(result.message);
+                    if (result.success) router.refresh();
+                  }}
+                >
+                  Remover
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
 
         <ul className="space-y-2">
           {blocks.map((block) => (
@@ -228,4 +287,12 @@ function covers(startsAt: string, durationMinutes: number, slotStart: number, sl
 
 function overlaps(startsAt: string, endsAt: string, slotStart: number, slotEnd: number) {
   return new Date(startsAt).getTime() < slotEnd && slotStart < new Date(endsAt).getTime();
+}
+
+function coversClock(startsAt: string, endsAt: string, slotStart: number, slotEnd: number) {
+  const [startHour, startMinute] = startsAt.split(":").map(Number);
+  const [endHour, endMinute] = endsAt.split(":").map(Number);
+  const start = startHour * 60 + startMinute;
+  const end = endHour * 60 + endMinute;
+  return start < slotEnd && slotStart < end;
 }

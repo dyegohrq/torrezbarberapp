@@ -17,6 +17,7 @@ export default async function PainelPage({
       hours={agenda.hours}
       appointments={agenda.appointments}
       blocks={agenda.blocks}
+      dailyBlocks={agenda.dailyBlocks}
       notifications={agenda.notifications}
     />
   );
