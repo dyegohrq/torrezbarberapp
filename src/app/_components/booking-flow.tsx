@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { X } from "lucide-react";
 import { confirmAppointment, getBookableDates, getSlots } from "@/app/agendar/_actions/booking";
 import type { AppointmentDetail, HoursItem, Profile, ServiceItem } from "@/lib/content/types";
-import { formatDateLabel, formatMoney, formatPhone, weekdayLabel } from "@/lib/format";
-import { zonedDate } from "@/lib/scheduling/availability";
+import { formatDateLabel, formatMoney, formatPhone, todayInFortaleza, weekdayLabel } from "@/lib/format";
+import { weekdayFromDate, zonedDate } from "@/lib/scheduling/availability";
 
 type BookingFlowProps = {
   services: ServiceItem[];
@@ -31,12 +31,15 @@ export function BookingFlow({
     rescheduleFrom?.services.map((item) => item.serviceId).filter((id): id is string => Boolean(id)) ??
       [],
   );
-  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [month, setMonth] = useState(() => todayInFortaleza().slice(0, 7));
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [openDates, setOpenDates] = useState<string[]>([]);
   const [slots, setSlots] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [datesLoading, setDatesLoading] = useState(false);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const datesCache = useRef(new Map<string, string[]>());
   const [message, setMessage] = useState("");
   const [done, setDone] = useState(false);
 
@@ -52,39 +55,59 @@ export function BookingFlow({
     .join(" · ");
 
   useEffect(() => {
-    if (step !== 2 || duration <= 0) return;
+    if (duration <= 0) return;
+
+    const key = `${month}|${duration}|${rescheduleFrom?.id ?? ""}`;
+    const cached = datesCache.current.get(key);
+    if (cached) {
+      setOpenDates(cached);
+      setDatesLoading(false);
+      return;
+    }
 
     let active = true;
-    setLoading(true);
+    setDatesLoading(true);
+    setOpenDates([]);
     getBookableDates({
       month,
       durationMinutes: duration,
       ignoreId: rescheduleFrom?.id,
-    }).then((dates) => {
-      if (!active) return;
-      setOpenDates(dates);
-      setLoading(false);
-    });
+    })
+      .then((dates) => {
+        if (!active) return;
+        datesCache.current.set(key, dates);
+        setOpenDates(dates);
+        setDatesLoading(false);
+      })
+      .catch(() => {
+        if (!active) return;
+        setDatesLoading(false);
+      });
 
     return () => {
       active = false;
     };
-  }, [step, month, duration, rescheduleFrom?.id]);
+  }, [month, duration, rescheduleFrom?.id]);
 
   useEffect(() => {
     if (step !== 3 || !date) return;
 
     let active = true;
-    setLoading(true);
+    setSlotsLoading(true);
     getSlots({
       date,
       durationMinutes: duration,
       ignoreId: rescheduleFrom?.id,
-    }).then((nextSlots) => {
-      if (!active) return;
-      setSlots(nextSlots);
-      setLoading(false);
-    });
+    })
+      .then((nextSlots) => {
+        if (!active) return;
+        setSlots(nextSlots);
+        setSlotsLoading(false);
+      })
+      .catch(() => {
+        if (!active) return;
+        setSlotsLoading(false);
+      });
 
     return () => {
       active = false;
@@ -95,7 +118,7 @@ export function BookingFlow({
 
   async function handleConfirm() {
     if (!date || !time) return;
-    setLoading(true);
+    setConfirming(true);
     setMessage("");
     const [hoursPart, minutesPart] = time.split(":").map(Number);
     const startsAt = zonedDate(date, hoursPart * 60 + minutesPart).toISOString();
@@ -104,7 +127,7 @@ export function BookingFlow({
       serviceIds: selected,
       rescheduleId: rescheduleFrom?.id,
     });
-    setLoading(false);
+    setConfirming(false);
     setMessage(result.message);
     if (result.success) setDone(true);
   }
@@ -153,11 +176,16 @@ export function BookingFlow({
               <StepDate
                 calendar={calendar}
                 month={month}
+                hours={hours}
                 openDates={openDates}
                 date={date}
-                loading={loading}
+                loading={datesLoading}
                 hoursNote={hoursNote}
-                onMonth={setMonth}
+                onMonth={(value) => {
+                  setMonth(value);
+                  setDate("");
+                  setTime("");
+                }}
                 onDate={(value) => {
                   setDate(value);
                   setTime("");
@@ -165,7 +193,7 @@ export function BookingFlow({
               />
             ) : null}
             {step === 3 ? (
-              <StepTime slots={slots} time={time} loading={loading} onTime={setTime} />
+              <StepTime slots={slots} time={time} loading={slotsLoading} onTime={setTime} />
             ) : null}
             {step === 4 ? (
               profile ? (
@@ -212,11 +240,11 @@ export function BookingFlow({
           ) : (
             <button
               type="button"
-              disabled={loading || !profile}
+              disabled={confirming || !profile}
               onClick={handleConfirm}
               className="bg-[#C5A059] py-3 text-sm font-bold tracking-[0.08em] text-[#0D0D0D] uppercase hover:bg-[#D4AF37] disabled:opacity-40"
             >
-              {loading ? "Confirmando..." : "Confirmar agendamento"}
+              {confirming ? "Confirmando..." : "Confirmar agendamento"}
             </button>
           )}
           {step > 1 ? (
@@ -287,6 +315,7 @@ function StepServices({
 function StepDate({
   calendar,
   month,
+  hours,
   openDates,
   date,
   loading,
@@ -296,6 +325,7 @@ function StepDate({
 }: {
   calendar: Array<{ date: string; label: number; inMonth: boolean }>;
   month: string;
+  hours: HoursItem[];
   openDates: string[];
   date: string;
   loading: boolean;
@@ -303,6 +333,8 @@ function StepDate({
   onMonth: (value: string) => void;
   onDate: (value: string) => void;
 }) {
+  const today = todayInFortaleza();
+
   return (
     <div>
       <h2 className="font-display text-3xl text-white">Escolha a data</h2>
@@ -319,6 +351,7 @@ function StepDate({
       <div className="mt-4 grid grid-cols-7 gap-2">
         {calendar.map((cell) => {
           const available = openDates.includes(cell.date);
+          const pending = loading && cell.inMonth && cell.date >= today && !isClosedWeekday(cell.date, hours);
           return (
             <button
               key={cell.date}
@@ -330,7 +363,9 @@ function StepDate({
                   ? "bg-[#C5A059] text-[#0D0D0D]"
                   : available
                     ? "border border-[#262626] text-white"
-                    : "text-[#4E4639]"
+                    : pending
+                      ? "border border-[#333] text-[#E5E5E5]"
+                      : "text-[#4E4639]"
               }`}
             >
               {cell.inMonth ? cell.label : ""}
@@ -341,6 +376,11 @@ function StepDate({
       <p className="mt-4 text-xs text-[#9CA3AF]">{hoursNote}</p>
     </div>
   );
+}
+
+function isClosedWeekday(date: string, hours: HoursItem[]) {
+  const day = hours.find((item) => item.weekday === weekdayFromDate(date));
+  return !day?.isOpen;
 }
 
 function StepTime({

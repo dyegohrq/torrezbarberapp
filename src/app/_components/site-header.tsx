@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { signOut } from "@/app/_actions/sign-out";
+import { BrandLogo } from "@/app/_components/brand-logo";
 import type { Profile } from "@/lib/content/types";
 
 const links = [
@@ -121,11 +122,7 @@ export function SiteHeader({
     >
       <div className="mx-auto flex h-16 max-w-300 items-center justify-between px-5 md:px-8 lg:px-12">
         <Link href="/#inicio" className="flex items-center gap-3">
-          <img
-            src="/image/TB_logo_fundo_removido.png"
-            alt="Torrez Barber"
-            className="h-10 w-auto"
-          />
+          <BrandLogo />
         </Link>
 
         <nav className="hidden items-center gap-6 lg:flex">
@@ -207,11 +204,7 @@ export function SiteHeader({
           />
           <aside className="absolute inset-y-0 left-0 flex w-[min(100%,320px)] flex-col overflow-y-auto overscroll-contain bg-[#0D0D0D] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
             <div className="mb-8 flex items-center justify-between">
-              <img
-                src="/image/TB_logo_fundo_removido.png"
-                alt=""
-                className="h-12 w-auto"
-              />
+              <BrandLogo alt="" className="h-12 w-auto" />
               <button
                 type="button"
                 aria-label="Fechar"

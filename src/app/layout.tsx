@@ -18,7 +18,6 @@ export const metadata: Metadata = {
   title: "Torrezbarber | Barbearia no Valentina, João Pessoa",
   description:
     "Barbearia no Valentina, João Pessoa — PB. Serviços, preços, portfólio e agendamento no site. Rua José de Oliveira Batista, 116.",
-  icons: { icon: "/image/TB_logo_fundo_removido.png" },
   openGraph: {
     title: "Torrezbarber | Barbearia no Valentina",
     description:

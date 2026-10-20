@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   canChangeAppointment,
+  collectBookableDates,
   listAvailableStarts,
   type AvailabilityInput,
   type DayHours,
@@ -115,6 +116,37 @@ describe("listAvailableStarts", () => {
 
     assert.equal(starts.includes("09:00"), true);
     assert.equal(starts.includes("09:30"), true);
+  });
+});
+
+describe("collectBookableDates", () => {
+  const hours = [
+    { weekday: 0, isOpen: true, opensAt: "09:00", closesAt: "13:00", breaks: [] },
+    { weekday: 1, isOpen: false, opensAt: null, closesAt: null, breaks: [] },
+    { weekday: 2, isOpen: true, opensAt: "09:00", closesAt: "18:00", breaks: [] },
+  ];
+
+  it("devolve só dias abertos, futuros e com vaga", () => {
+    const dates = collectBookableDates({
+      month: "2026-10",
+      today: "2026-10-04",
+      durationMinutes: 60,
+      now: new Date("2026-10-04T08:00:00-03:00"),
+      hours,
+      occupied: [
+        {
+          id: "apt-1",
+          startsAt: "2026-10-04T09:00:00-03:00",
+          endsAt: "2026-10-04T13:00:00-03:00",
+        },
+      ],
+    });
+
+    assert.equal(dates.includes("2026-10-03"), false);
+    assert.equal(dates.includes("2026-10-04"), false);
+    assert.equal(dates.includes("2026-10-05"), false);
+    assert.equal(dates.includes("2026-10-06"), true);
+    assert.equal(dates.includes("2026-10-11"), true);
   });
 });
 

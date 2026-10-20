@@ -118,3 +118,68 @@ export function listAvailableStarts(input: AvailabilityInput): string[] {
 export function canChangeAppointment(startsAt: Date, now: Date): boolean {
   return now.getTime() <= startsAt.getTime() - 2 * 60 * 60 * 1000;
 }
+
+export function dateInFortaleza(value: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(value);
+}
+
+type MonthSchedule = {
+  weekday: number;
+  isOpen: boolean;
+  opensAt: string | null;
+  closesAt: string | null;
+  breaks: ClockRange[];
+};
+
+export function collectBookableDates(input: {
+  month: string;
+  today: string;
+  durationMinutes: number;
+  now: Date;
+  hours: MonthSchedule[];
+  occupied: OccupiedRange[];
+  ignoreId?: string;
+}): string[] {
+  const match = /^(\d{4})-(\d{2})$/.exec(input.month);
+  if (!match || input.durationMinutes <= 0) return [];
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const lastDay = new Date(year, month, 0).getDate();
+  const spans = input.occupied.flatMap((item) => {
+    const start = new Date(item.startsAt);
+    const end = new Date(item.endsAt);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
+    return [{ item, startDay: dateInFortaleza(start), endDay: dateInFortaleza(end) }];
+  });
+  const dates: string[] = [];
+
+  for (let day = 1; day <= lastDay; day += 1) {
+    const date = `${match[1]}-${match[2]}-${String(day).padStart(2, "0")}`;
+    if (date < input.today) continue;
+
+    const schedule = input.hours.find((item) => item.weekday === weekdayFromDate(date));
+    if (!schedule) continue;
+
+    const slots = listAvailableStarts({
+      date,
+      durationMinutes: input.durationMinutes,
+      now: input.now,
+      hours: schedule,
+      breaks: schedule.breaks,
+      occupied: spans
+        .filter((span) => span.startDay <= date && span.endDay >= date)
+        .map((span) => span.item),
+      ignoreId: input.ignoreId,
+    });
+
+    if (slots.length > 0) dates.push(date);
+  }
+
+  return dates;
+}

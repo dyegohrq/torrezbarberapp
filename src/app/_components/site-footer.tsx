@@ -1,3 +1,4 @@
+import { BrandLogo } from "@/app/_components/brand-logo";
 import { contactWhatsAppUrl } from "@/lib/whatsapp";
 import type { BusinessProfile, HoursItem } from "@/lib/content/types";
 import { weekdayLabel } from "@/lib/format";
@@ -13,7 +14,7 @@ export function SiteFooter({
     <footer className="border-t border-[#262626] bg-[#0D0D0D]">
       <div className="mx-auto grid max-w-300 gap-10 px-5 py-12 md:grid-cols-4 md:px-8 lg:px-12">
         <div>
-          <img src="/image/TB_logo_fundo_removido.png" alt="Torrez Barber" className="mb-4 h-10 w-auto " />
+          <BrandLogo className="mb-4 h-10 w-auto" />
           <p className="text-sm text-[#9CA3AF]">Barbearia no Valentina, João Pessoa — PB.</p>
         </div>
         <div>

@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   // O celular abre o dev server pelo IP da rede. Sem isso o Next bloqueia o JS e o menu não responde ao clique.
   allowedDevOrigins: ["192.168.0.58", "192.168.*.*"],
   images: {
+    formats: ["image/avif", "image/webp"],
     remotePatterns: [
       {
         protocol: "https",

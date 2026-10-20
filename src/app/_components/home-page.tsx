@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getImageProps } from "next/image";
 import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 import { SiteFooter } from "@/app/_components/site-footer";
@@ -72,18 +73,61 @@ export function HomePage({
 }
 
 function Hero({ onSchedule, loggedIn }: { onSchedule: () => void; loggedIn: boolean }) {
+  const common = { alt: "Fachada da Torrez Barber", sizes: "100vw" };
+  const {
+    props: { srcSet: desktop },
+  } = getImageProps({
+    ...common,
+    width: 1440,
+    height: 800,
+    src: "/image/torrezbarber_1440x800.png",
+  });
+  const {
+    props: { srcSet: mobile, ...rest },
+  } = getImageProps({
+    ...common,
+    width: 1024,
+    height: 1280,
+    src: "/image/torrezbarber-mobile.png",
+    loading: "eager",
+    fetchPriority: "high",
+  });
+
   return (
     <section id="hero" className="relative min-h-[80vh] bg-[#131313]">
-      <img
-        src="/image/torrezbarber_1440x800.png"
-        alt="Fachada da Torrez Barber"
-        className="absolute inset-0 hidden h-full w-full object-cover md:block"
+      <link
+        rel="preload"
+        as="image"
+        imageSrcSet={mobile}
+        imageSizes="100vw"
+        media="(max-width: 767px)"
+        fetchPriority="high"
       />
-      <img
-        src="/image/torrezbarber-mobile.png"
-        alt="Fachada da Torrez Barber"
-        className="absolute inset-0 h-full w-full object-cover md:hidden"
+      <link
+        rel="preload"
+        as="image"
+        imageSrcSet={desktop}
+        imageSizes="100vw"
+        media="(min-width: 768px)"
+        fetchPriority="high"
       />
+      <picture>
+        <source media="(min-width: 768px)" srcSet={desktop} sizes="100vw" />
+        <source media="(max-width: 767px)" srcSet={mobile} sizes="100vw" />
+        <img
+          {...rest}
+          srcSet={mobile}
+          className="absolute inset-0 h-full w-full object-cover"
+          style={{
+            ...rest.style,
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+          }}
+        />
+      </picture>
       <div className="absolute inset-0 bg-linear-to-r from-black/80 via-black/55 to-black/20" />
       <div className="relative mx-auto flex min-h-[80vh] max-w-300 flex-col justify-center px-5 py-16 md:px-8 lg:px-12">
         <p className="text-[11px] font-bold tracking-[0.14em] text-[#C5A059] uppercase">Valentina · João Pessoa</p>
