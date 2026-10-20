@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Plus_Jakarta_Sans } from "next/font/google";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
@@ -33,7 +34,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="pt-BR"
       className={cn("dark h-full antialiased", sans.variable, display.variable)}
     >
-      <body className="min-h-full bg-[#131313] font-sans text-[#E5E5E5]">{children}</body>
+      <body className="min-h-full bg-[#131313] font-sans text-[#E5E5E5]">
+        {children}
+      </body>
+      <GoogleAnalytics gaId="G-4VEKGT5TY9" />
     </html>
   );
 }
