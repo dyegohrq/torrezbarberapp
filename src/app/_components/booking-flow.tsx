@@ -152,7 +152,11 @@ export function BookingFlow({
             <p className="text-sm text-[#9CA3AF]">
               Só é possível um agendamento futuro por vez. Cancele ou remarque o atual para escolher outro.
             </p>
-            <Link href="/minha-agenda" className="inline-block text-sm font-bold tracking-[0.08em] text-[#C5A059] uppercase">
+            <Link
+              href="/minha-agenda"
+              prefetch
+              className="inline-block text-sm font-bold tracking-[0.08em] text-[#C5A059] uppercase"
+            >
               Ver meu agendamento
             </Link>
           </div>
@@ -163,7 +167,11 @@ export function BookingFlow({
             <p className="text-sm text-[#9CA3AF]">
               {chosen.map((service) => service.name).join(", ")} · {formatDateLabel(date)} às {time}
             </p>
-            <Link href="/minha-agenda" className="inline-block text-sm font-bold tracking-[0.08em] text-[#C5A059] uppercase">
+            <Link
+              href="/minha-agenda"
+              prefetch
+              className="inline-block text-sm font-bold tracking-[0.08em] text-[#C5A059] uppercase"
+            >
               Ver comprovante
             </Link>
           </div>

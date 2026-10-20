@@ -1,20 +1,11 @@
 import { SiteHeader } from "@/app/_components/site-header";
+import { MyAppointment } from "@/app/minha-agenda/_components/my-appointment";
+import { getAgendaPage } from "@/app/minha-agenda/_data-access/get-agenda";
 
 export const dynamic = "force-dynamic";
-import { getFutureAppointment, getSessionProfile } from "@/app/_data-access/get-public-content";
-import { MyAppointment } from "@/app/minha-agenda/_components/my-appointment";
 
 export default async function MinhaAgendaPage() {
-  const profile = await getSessionProfile();
-  const appointment = profile ? await getFutureAppointment(profile.id) : null;
-
-  if (appointment && profile) {
-    appointment.client = {
-      fullName: profile.fullName,
-      phone: profile.phone,
-      email: profile.email,
-    };
-  }
+  const { profile, appointment } = await getAgendaPage();
 
   return (
     <div className="min-h-screen bg-[#0D0D0D]">
