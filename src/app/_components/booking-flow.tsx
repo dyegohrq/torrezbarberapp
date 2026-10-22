@@ -7,11 +7,13 @@ import { confirmAppointment, getBookableDates, getSlots } from "@/app/agendar/_a
 import type { AppointmentDetail, HoursItem, Profile, ServiceItem } from "@/lib/content/types";
 import { formatDateLabel, formatMoney, formatPhone, todayInFortaleza, weekdayLabel } from "@/lib/format";
 import { weekdayFromDate, zonedDate } from "@/lib/scheduling/availability";
+import { bookingConfirmationText, bookingWhatsAppUrl } from "@/lib/whatsapp";
 
 type BookingFlowProps = {
   services: ServiceItem[];
   hours: HoursItem[];
   profile: Profile | null;
+  whatsapp: string;
   futureAppointment: AppointmentDetail | null;
   rescheduleFrom?: AppointmentDetail | null;
   onClose?: () => void;
@@ -21,6 +23,7 @@ export function BookingFlow({
   services,
   hours,
   profile,
+  whatsapp,
   futureAppointment,
   rescheduleFrom,
   onClose,
@@ -167,6 +170,18 @@ export function BookingFlow({
             <p className="text-sm text-[#9CA3AF]">
               {chosen.map((service) => service.name).join(", ")} · {formatDateLabel(date)} às {time}
             </p>
+            {profile ? (
+              <OwnerConfirmation
+                whatsapp={whatsapp}
+                rescheduled={Boolean(rescheduleFrom)}
+                clientName={profile.fullName}
+                clientPhone={formatPhone(profile.phone)}
+                services={chosen.map((service) => service.name).join(", ")}
+                dateLabel={formatDateLabel(date)}
+                time={time}
+                price={formatMoney(total)}
+              />
+            ) : null}
             <Link
               href="/minha-agenda"
               prefetch
@@ -274,6 +289,53 @@ export function BookingFlow({
       current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
     );
   }
+}
+
+function OwnerConfirmation({
+  whatsapp,
+  rescheduled,
+  clientName,
+  clientPhone,
+  services,
+  dateLabel,
+  time,
+  price,
+}: {
+  whatsapp: string;
+  rescheduled: boolean;
+  clientName: string;
+  clientPhone: string;
+  services: string;
+  dateLabel: string;
+  time: string;
+  price: string;
+}) {
+  const notice = {
+    rescheduled,
+    clientName,
+    clientPhone,
+    services,
+    dateLabel,
+    time,
+    price,
+  };
+  const text = bookingConfirmationText(notice);
+  const href = bookingWhatsAppUrl({ whatsapp, ...notice });
+
+  return (
+    <div className="space-y-3 border border-[#262626] bg-[#1C1C1C] p-4">
+      <p className="text-sm text-white">Envie esta confirmação para o barbeiro no WhatsApp.</p>
+      <p className="text-sm whitespace-pre-line text-[#9CA3AF]">{text}</p>
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-block bg-[#C5A059] px-4 py-3 text-sm font-bold tracking-[0.08em] text-[#0D0D0D] uppercase"
+      >
+        Enviar no WhatsApp
+      </a>
+    </div>
+  );
 }
 
 function canContinue(step: number, selected: string[], date: string, time: string) {

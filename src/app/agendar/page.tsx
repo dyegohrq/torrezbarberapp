@@ -48,6 +48,7 @@ export default async function AgendarPage({
           services={content.services}
           hours={content.hours}
           profile={profile}
+          whatsapp={content.business.whatsapp}
           futureAppointment={futureAppointment}
           rescheduleFrom={rescheduleFrom}
         />

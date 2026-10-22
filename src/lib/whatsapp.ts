@@ -1,4 +1,7 @@
 import { formatMoney, whatsappDigits } from "@/lib/format";
+import { bookingConfirmationText } from "@/lib/whatsapp/booking-notice";
+
+export { bookingConfirmationText };
 
 const CONTACT_TEXT =
   "Olá! Gostaria de tirar uma dúvida sobre a Torrezbarber.";
@@ -26,4 +29,18 @@ export function productWhatsAppUrl(input: {
   ].join("\n");
 
   return `https://wa.me/${whatsappDigits(input.whatsapp)}?text=${encodeURIComponent(message)}`;
+}
+
+export function bookingWhatsAppUrl(input: {
+  whatsapp: string;
+  rescheduled: boolean;
+  clientName: string;
+  clientPhone: string;
+  services: string;
+  dateLabel: string;
+  time: string;
+  price: string;
+}): string {
+  const { whatsapp, ...notice } = input;
+  return `https://wa.me/${whatsappDigits(whatsapp)}?text=${encodeURIComponent(bookingConfirmationText(notice))}`;
 }

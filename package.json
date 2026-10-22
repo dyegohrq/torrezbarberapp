@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node --experimental-strip-types --test src/lib/scheduling/availability.test.ts"
+    "test": "node --experimental-strip-types --test src/lib/scheduling/availability.test.ts src/lib/whatsapp/booking-notice.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

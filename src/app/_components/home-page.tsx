@@ -63,6 +63,7 @@ export function HomePage({
             services={content.services}
             hours={content.hours}
             profile={profile}
+            whatsapp={content.business.whatsapp}
             futureAppointment={futureAppointment}
             onClose={() => setBookingOpen(false)}
           />
